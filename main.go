@@ -35,12 +35,18 @@ func (this *ApiServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
   msg := r.PostFormValue("msg")
 
+	uid := r.PostFormValue("uid")
+
+	if uid == ""{
+		uid = "myself"
+	}
+
 	switch this.ApiName {
 	case "message":
 		var reply string
 		fmt.Println(msg)
 		turingConfig, _ := getConfig("turing")
-		resp, err := http.PostForm(turingConfig["base_url"], url.Values{"uid":{"myself"}, "key": {turingConfig["key"]}, "info": {msg}})
+		resp, err := http.PostForm(turingConfig["base_url"], url.Values{"uid":{uid}, "key": {turingConfig["key"]}, "info": {msg}})
 		if err != nil{
 			fmt.Println("request fail")
 			return
@@ -57,6 +63,10 @@ func (this *ApiServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			reply = replyMap["text"].(string)
 		}else if replyMap["code"] == 200000{
 			reply = "给你个链接接着  " + replyMap["url"].(string)
+		}else if replyMap["code"] == 40002{
+			reply = "不知道你在说虾米～"
+		}else{
+			reply = "哦"
 		}
 		fmt.Fprint(w, reply)
 	default:
