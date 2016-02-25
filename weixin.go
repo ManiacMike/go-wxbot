@@ -13,13 +13,13 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 	// "strings"
 )
 
 type wxweb struct {
 	uuid string
+  redirect_uri string
 }
 
 type jsonData map[string]interface{}
@@ -30,12 +30,12 @@ func (self *wxweb) getUuid(args ...interface{}) bool {
 	params["appid"] = "wx782c26e4c19acffb"
 	params["fun"] = "new"
 	params["lang"] = "zh_CN"
-	params["_"] = self.unixStr()
+	params["_"] = self._unixStr()
 	data, _ := self._get(urlstr, params, false)
-	re := regexp.MustCompile("\"(\\S+?)\"")
-	find := re.FindAllString(data, -1)
-	if len(find) > 0 {
-		self.uuid = strings.Replace(find[0], "\"", "", -1)
+  re := regexp.MustCompile(`"([\S]+)"`)
+  find := re.FindStringSubmatch (data)
+	if len(find) > 1 {
+		self.uuid = find[1]
 		return true
 	} else {
 		return false
@@ -100,7 +100,7 @@ func (self *wxweb) _get(urlstr string, params jsonData, jsonFmt bool) (string, e
 	return string(body), nil
 }
 
-func (self *wxweb) unixStr() string {
+func (self *wxweb) _unixStr() string {
 	return strconv.Itoa(int(time.Now().Unix()))
 }
 
@@ -108,7 +108,7 @@ func (self *wxweb) unixStr() string {
 func (self *wxweb) genQRcode(args ...interface{}) bool {
 	urlstr := "https://login.weixin.qq.com/qrcode/" + self.uuid
 	urlstr += "?t=webwx"
-	urlstr += "&_=" + self.unixStr()
+	urlstr += "&_=" + self._unixStr()
 	path := "qrcode.jpg"
 	out, err := os.Create(path)
 	defer out.Close()
@@ -124,10 +124,56 @@ func (self *wxweb) genQRcode(args ...interface{}) bool {
 	}
 }
 
+func (self *wxweb) waitForLogin(tip int) bool{
+  time.Sleep(time.Duration(tip) * time.Second)
+  params := make(map[string]interface{})
+  params["tip"] = strconv.Itoa(tip)
+  params["uuid"] = self.uuid
+  params["_"] = self._unixStr()
+  url := "https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login"
+  data,_ := self._get(url, params, false)
+  fmt.Println(data)
+  re := regexp.MustCompile(`\s(\d+);`)
+	find := re.FindStringSubmatch (data)
+  if len(find) > 1 {
+    code := find[1]
+    fmt.Println(code)
+    if code == "201"{
+      return true
+    }else if code == "200"{
+      re := regexp.MustCompile(`window.redirect_uri="(\S+?)";`)
+      find := re.FindStringSubmatch(data)
+      if len(find) > 1{
+        r_uri := find[1]+"&fun=new"
+        self.redirect_uri = r_uri
+        fmt.Println(r_uri)
+        // self.base_uri = r_uri[:r_uri.rfind('/')]
+      }
+      return true
+    }else if code == "408"{
+      fmt.Println("[登陆超时]")
+    }else{
+      fmt.Println("[登陆异常]")
+    }
+  }
+  return false
+}
+
 func (self *wxweb) start() {
 	fmt.Println("[*] 微信网页版 ... 开动")
 	self._run("[*] 正在获取 uuid ... ", self.getUuid)
 	self._run("[*] 正在获取 二维码 ... ", self.genQRcode)
+  fmt.Println ("[*] 请使用微信扫描二维码以登录 ... ")
+  for{
+    if self.waitForLogin(1) == false{
+      continue
+      fmt.Println("[*] 请在手机上点击确认以登录 ... ")
+    }
+    if self.waitForLogin(0) == false{
+      continue
+    }
+    break
+  }
 }
 
 func forgeheadget(urlstr string) string {
