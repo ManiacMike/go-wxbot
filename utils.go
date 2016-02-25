@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/json"
 	"github.com/bitly/go-simplejson" // for json get
+	"github.com/larspensjo/config"
 	"strconv"
 	"strings"
 	"time"
-	"github.com/larspensjo/config"
 )
 
 const LINE_SEPARATOR = "#LINE_SEPARATOR#"

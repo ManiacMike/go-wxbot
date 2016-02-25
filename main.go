@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	// "net/http"
-  // "log"
+	// "log"
 )
 
 type ServiceError struct {
@@ -24,12 +24,11 @@ func CheckErr(err error) {
 	}
 }
 
-
-func main(){
+func main() {
 	wx := wxweb{}
 	wx.start()
 
-  // http.Handle("/message", &ApiServer{ApiName: "message"})
+	// http.Handle("/message", &ApiServer{ApiName: "message"})
 	//
 	// serverConfig, err := getConfig("server")
 	// if err != nil {
@@ -38,7 +37,7 @@ func main(){
 	//
 	// fmt.Println("listen on port " + serverConfig["port"])
 	//
-  // if err = http.ListenAndServe(":"+serverConfig["port"], nil); err != nil {
+	// if err = http.ListenAndServe(":"+serverConfig["port"], nil); err != nil {
 	// 	log.Fatal("ListenAndServe:", err)
 	// }
 
