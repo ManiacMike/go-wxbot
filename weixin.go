@@ -78,9 +78,15 @@ func (self *wxweb) _post(urlstr string, params map[string]interface{}, jsonFmt b
 	if jsonFmt == true {
 		jsonPost := JsonEncode(params)
 		requestBody := bytes.NewBuffer([]byte(jsonPost))
-		fmt.Println(jsonPost)
-		fmt.Println(urlstr)
-		resp, err = self.http_client.Post(urlstr, "application/json;charset=utf-8", requestBody)
+		request, err := http.NewRequest("POST", urlstr, requestBody)
+		if err != nil {
+			return "", err
+		}
+		request.Header.Set("Content-Type", "application/json;charset=utf-8")
+		request.Header.Add("Referer", "https://wx.qq.com/")
+		request.Header.Add("User-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36")
+		resp, err = self.http_client.Do(request)
+		// resp, err = self.http_client.Post(urlstr, "application/json;charset=utf-8", requestBody)
 	} else {
 		v := url.Values{}
 		for key, value := range params {
@@ -218,10 +224,16 @@ func (self *wxweb) webwxinit(args ...interface{}) bool {
 	//log
 
 	data := JsonDecode(res).(map[string]interface{})
-	self.SyncKey = data["SyncKey"].(map[string]interface{})
-	fmt.Println(self.SyncKey)
 	self.User = data["User"].(map[string]interface{})
-	fmt.Println(self.User)
+	self.SyncKey = data["SyncKey"].(map[string]interface{})
+	self._setsynckey()
+
+	//interface float64和float64型不能使用==
+	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(float64)
+	return retCode == 0
+}
+
+func (self *wxweb) _setsynckey() {
 	keys := []string{}
 	for _, keyVal := range self.SyncKey["List"].([]interface{}) {
 		key := strconv.Itoa(int(keyVal.(map[string]interface{})["Key"].(float64)))
@@ -229,11 +241,6 @@ func (self *wxweb) webwxinit(args ...interface{}) bool {
 		keys = append(keys, key+"_"+value)
 	}
 	self.synckey = strings.Join(keys, "|")
-	fmt.Println(self.synckey)
-
-	//interface float64和float64型不能使用==
-	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(float64)
-	return retCode == 0
 }
 
 func (self *wxweb) synccheck() (string, string) {
@@ -247,14 +254,13 @@ func (self *wxweb) synccheck() (string, string) {
 	v.Add("synckey", self.synckey)
 	v.Add("_", self._unixStr())
 	urlstr = urlstr + "?" + v.Encode()
-	fmt.Println(urlstr)
 	data, _ := self._get(urlstr, false)
 	re := regexp.MustCompile(`window.synccheck={retcode:"(\d+)",selector:"(\d+)"}`)
 	find := re.FindStringSubmatch(data)
-	fmt.Println(find)
 	if len(find) > 2 {
 		retcode := find[1]
 		selector := find[2]
+		fmt.Println(fmt.Sprintf("retcode:%s,selector,selector%s", find[1], find[2]))
 		return retcode, selector
 	} else {
 		return "9999", "0"
@@ -275,11 +281,66 @@ func (self *wxweb) testsynccheck(args ...interface{}) bool {
 		self.syncHost = host
 		retcode, _ := self.synccheck()
 		if retcode == "0" {
-			fmt.Println(self.syncHost)
 			return true
 		}
 	}
 	return false
+}
+
+func (self *wxweb) webwxstatusnotify(args ...interface{}) bool {
+	urlstr := fmt.Sprintf("%s/webwxstatusnotify?lang=zh_CN&pass_ticket=%s", self.base_uri, self.pass_ticket)
+	params := make(map[string]interface{})
+	params["BaseRequest"] = self.BaseRequest
+	params["Code"] = 3
+	params["FromUserName"] = self.User["UserName"]
+	params["ToUserName"] = self.User["UserName"]
+	params["ClientMsgId"] = int(time.Now().Unix())
+	res, err := self._post(urlstr, params, true)
+	if err != nil {
+		return false
+	}
+	data := JsonDecode(res).(map[string]interface{})
+	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(float64)
+	return retCode == 0
+}
+
+func (self *wxweb) webwxsync() interface{} {
+	urlstr := fmt.Sprintf("%s/webwxsync?sid=%s&skey=%s&pass_ticket=%s", self.base_uri, self.sid, self.skey, self.pass_ticket)
+	params := make(map[string]interface{})
+	params["BaseRequest"] = self.BaseRequest
+	params["SyncKey"] = self.SyncKey
+	params["rr"] = ^int(time.Now().Unix())
+	res, err := self._post(urlstr, params, true)
+	if err != nil {
+		return false
+	}
+	data := JsonDecode(res).(map[string]interface{})
+	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(float64)
+	if retCode == 0 {
+		self.SyncKey = data["SyncKey"].(map[string]interface{})
+		self._setsynckey()
+	}
+	return data
+}
+
+func (self *wxweb) handleMsg(r interface{}) {
+	for _, msg := range r.(map[string]interface{})["AddMsgList"].([]interface{}) {
+		fmt.Println("[*] 你有新的消息，请注意查收")
+		// msg = msg.(map[string]interface{})
+		msgType := msg.(map[string]interface{})["MsgType"].(float64)
+		fromUserName := msg.(map[string]interface{})["FromUserName"].(string)
+		// name = self.getUserRemarkName(msg['FromUserName'])
+		content := msg.(map[string]interface{})["Content"].(string)
+		// msgid := msg.(map[string]interface{})["MsgId"].(float64)
+		if msgType == 1 {
+			if fromUserName[:2] == "@@" {
+				fmt.Println("群")
+			} else {
+
+			}
+			fmt.Println(content)
+		}
+	}
 }
 
 func (self *wxweb) _init() {
@@ -316,7 +377,30 @@ func (self *wxweb) start() {
 	}
 	self._run("[*] 正在登录 ... ", self.login)
 	self._run("[*] 微信初始化 ... ", self.webwxinit)
+	self._run("[*] 开启状态通知 ... ", self.webwxstatusnotify)
 	self._run("[*] 进行同步线路测试 ... ", self.testsynccheck)
+	for {
+		retcode, selector := self.synccheck()
+		if retcode == "1100" {
+			fmt.Println("[*] 你在手机上登出了微信，债见")
+			break
+		} else if retcode == "1101" {
+			fmt.Println("[*] 你在其他地方登录了 WEB 版微信，债见")
+			break
+		} else if retcode == "0" {
+			if selector == "2" {
+				r := self.webwxsync()
+				switch r.(type) {
+				case bool:
+				default:
+					self.handleMsg(r)
+				}
+			} else if selector == "0" {
+				time.Sleep(1)
+			}
+		}
+	}
+
 }
 
 func forgeheadget(urlstr string) string {
