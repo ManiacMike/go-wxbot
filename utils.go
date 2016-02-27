@@ -5,14 +5,10 @@ import (
 	"github.com/bitly/go-simplejson" // for json get
 	"github.com/larspensjo/config"
 	"strconv"
-	"strings"
 	"time"
 )
 
-const LINE_SEPARATOR = "#LINE_SEPARATOR#"
-
 func JsonStrToMap(jsonStr string) map[string]interface{} {
-	jsonStr = strings.Replace(jsonStr, "\n", LINE_SEPARATOR, -1)
 	json, err := simplejson.NewJson([]byte(jsonStr))
 	if err != nil {
 		panic(err.Error())
@@ -35,25 +31,24 @@ func JsonEncode(nodes interface{}) string {
 	return string(body)
 }
 
-func JsonDecode(jsonStr string) map[string]interface{} {
-	jsonStr = strings.Replace(jsonStr, "\n", LINE_SEPARATOR, -1)
+func JsonDecode(jsonStr string) interface{} {
 	var f interface{}
 	err := json.Unmarshal([]byte(jsonStr), &f)
 	if err != nil {
 		panic(err)
+		return false
 	}
-	m := f.(map[string]interface{})
-	for k, v := range m {
-		switch v.(type) {
-		case string:
-			m[k] = v.(string)
-		case int:
-			m[k] = v.(int)
-		case float64:
-			m[k] = int(v.(float64))
-		}
-	}
-	return m
+	// m := f.(map[string]interface{})
+	// for k, v := range m {
+	// 	switch v.(type) {
+	// 	case string:
+	// 		m[k] = v.(string)
+	// 	case int:
+	// 		m[k] = v.(int)
+	// 	case float64:
+	// 		m[k] = int(v.(float64))
+	// }
+	return f
 }
 
 func getConfig(sec string) (map[string]string, error) {

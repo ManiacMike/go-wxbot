@@ -77,14 +77,15 @@ func (this *ApiServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		fmt.Println(string(body))
-		replyMap := JsonDecode(string(body))
-		if replyMap["code"] == 100000 {
+		replyMap := JsonDecode(string(body)).(map[string]interface{})
+		code := replyMap["code"].(int)
+		if code == 100000 {
 			reply = replyMap["text"].(string)
-		} else if replyMap["code"] == 200000 {
+		} else if code == 200000 {
 			reply = "给你个链接接着  " + replyMap["url"].(string)
-		} else if replyMap["code"] == 40002 {
+		} else if code == 40002 {
 			reply = "不知道你在说虾米～"
-		} else if replyMap["code"] == 40004 {
+		} else if code == 40004 {
 			reply = "今天太累了，明天再聊吧"
 		} else {
 			reply = "哦"
