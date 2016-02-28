@@ -334,6 +334,7 @@ func (self *wxweb) webwxsync() interface{} {
 }
 
 func (self *wxweb) handleMsg(r interface{}) {
+	myNickName := self.User["NickName"].(string)
 	for _, msg := range r.(map[string]interface{})["AddMsgList"].([]interface{}) {
 		// fmt.Println("[*] 你有新的消息，请注意查收")
 		// msg = msg.(map[string]interface{})
@@ -341,17 +342,68 @@ func (self *wxweb) handleMsg(r interface{}) {
 		fromUserName := msg.(map[string]interface{})["FromUserName"].(string)
 		// name = self.getUserRemarkName(msg['FromUserName'])
 		content := msg.(map[string]interface{})["Content"].(string)
+		content = strings.Replace(content, "&lt;", "<", -1)
+		content = strings.Replace(content, "&gt;", ">", -1)
+		content = strings.Replace(content, " ", " ", 1)
 		// msgid := msg.(map[string]interface{})["MsgId"].(int)
 		if msgType == 1 {
+			var ans string
+			var err error
 			if fromUserName[:2] == "@@" {
-				fmt.Println("群")
+				contentSlice := strings.Split(content, ":<br/>")
+				// people := contentSlice[0]
+				content = contentSlice[1]
+				if strings.Contains(content, "@"+myNickName) {
+					realcontent := strings.TrimSpace(strings.Replace(content, "@"+myNickName, "", 1))
+					debugPrint(realcontent)
+					if realcontent == "统计人数" {
+						// stat = self.webgetchatroommember(msg['FromUserName'])
+						// ans = "据统计群里男生"+str(stat["man"])+"人，女生"+str(stat["woman"])+"人 (ó㉨ò)"
+						ans = "test"
+					} else {
+						ans, err = self.getReplyByApi(realcontent, fromUserName)
+					}
+				}
 			} else {
-
+				ans, err = self.getReplyByApi(content, fromUserName)
 			}
-			fmt.Println(content)
+			debugPrint(ans)
+			debugPrint(content)
+			if err != nil {
+				debugPrint(err)
+			} else if ans != "" {
+				go self.webwxsendmsg(ans, fromUserName)
+			}
 		} else if msgType == 51 {
 			fmt.Println("[*] 成功截获微信初始化消息")
 		}
+	}
+}
+
+func (self *wxweb) getReplyByApi(realcontent string, fromUserName string) (string, error) {
+	return getAnswer(realcontent, fromUserName, self.User["NickName"].(string))
+}
+
+func (self *wxweb) webwxsendmsg(message string, toUseNname string) bool {
+	urlstr := fmt.Sprintf("%s/webwxsendmsg?pass_ticket=%s", self.base_uri, self.pass_ticket)
+	clientMsgId := self._unixStr() + "0" + strconv.Itoa(rand.Int())[3:6]
+	params := make(map[string]interface{})
+	params["BaseRequest"] = self.BaseRequest
+	msg := make(map[string]interface{})
+	msg["Type"] = 1
+	msg["Content"] = message
+	msg["FromUserName"] = self.User["UserName"]
+	msg["ToUserName"] = toUseNname
+	msg["LocalID"] = clientMsgId
+	msg["ClientMsgId"] = clientMsgId
+	params["Msg"] = msg
+	data, err := self._post(urlstr, params, true)
+	if err != nil {
+		debugPrint(err)
+		return false
+	} else {
+		debugPrint(data)
+		return true
 	}
 }
 

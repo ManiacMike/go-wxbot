@@ -31,67 +31,65 @@ func randomEmoticon() string {
 }
 
 func (this *ApiServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	msg := r.PostFormValue("msg")
-
-	uid := r.PostFormValue("uid")
-
-	robotName := r.PostFormValue("robot")
-
-	if uid == "" {
-		uid = "myself"
-	}
-
-	if robotName == "" {
-		fmt.Println("robot名字未定义")
-		return
-	}
-
 	switch this.ApiName {
 	case "message":
-		var reply string
-		fmt.Println(msg)
-		if strings.Contains(msg, "颜文字") {
-			e := randomEmoticon()
-			fmt.Fprint(w, e)
+		msg := r.PostFormValue("msg")
+		uid := r.PostFormValue("uid")
+		robotName := r.PostFormValue("robot")
+		if uid == "" {
+			uid = "myself"
+		}
+		if robotName == "" {
+			fmt.Println("robot名字未定义")
 			return
 		}
-		turingConfig, _ := getConfig("turing")
-		robotConfig, err := getConfig(robotName)
+		reply, err := getAnswer(msg, uid, robotName)
 		if err != nil {
-			fmt.Println("robot配置未定义")
-			return
-		} else if _, exist := robotConfig["key"]; exist == false {
-			fmt.Println("robot配置未定义")
-			return
-		}
-		resp, err := http.PostForm(turingConfig["base_url"], url.Values{"uid": {uid}, "key": {robotConfig["key"]}, "info": {msg}})
-		if err != nil {
-			fmt.Println("request fail")
-			return
-		}
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println("request fail")
-			return
-		}
-		fmt.Println(string(body))
-		replyMap := JsonDecode(string(body)).(map[string]interface{})
-		code := replyMap["code"].(int)
-		if code == 100000 {
-			reply = replyMap["text"].(string)
-		} else if code == 200000 {
-			reply = "给你个链接接着  " + replyMap["url"].(string)
-		} else if code == 40002 {
-			reply = "不知道你在说虾米～"
-		} else if code == 40004 {
-			reply = "今天太累了，明天再聊吧"
+			fmt.Println(err)
 		} else {
-			reply = "哦"
+			fmt.Fprint(w, reply)
 		}
-		fmt.Fprint(w, reply)
 	default:
 		fmt.Fprint(w, "Invalid api")
 	}
+}
+
+func getAnswer(msg string, uid string, robotName string) (string, error) {
+	fmt.Println(msg)
+	var reply string
+	if strings.Contains(msg, "颜文字") {
+		e := randomEmoticon()
+		return e, nil
+	}
+	turingConfig, _ := getConfig("turing")
+	robotConfig, err := getConfig(robotName)
+	if err != nil {
+		return "", Error("robot配置未定义")
+	} else if _, exist := robotConfig["key"]; exist == false {
+		return "", Error("robot配置未定义")
+	}
+	resp, err := http.PostForm(turingConfig["base_url"], url.Values{"uid": {uid}, "key": {robotConfig["key"]}, "info": {msg}})
+	if err != nil {
+		return "", Error("request fail")
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", Error("request fail")
+	}
+	fmt.Println(string(body))
+	replyMap := JsonDecode(string(body)).(map[string]interface{})
+	code := replyMap["code"].(int)
+	if code == 100000 {
+		reply = replyMap["text"].(string)
+	} else if code == 200000 {
+		reply = "给你个链接接着  " + replyMap["url"].(string)
+	} else if code == 40002 {
+		reply = "不知道你在说虾米～"
+	} else if code == 40004 {
+		reply = "今天太累了，明天再聊吧"
+	} else {
+		reply = "哦"
+	}
+	return reply, nil
 }
