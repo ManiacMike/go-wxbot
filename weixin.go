@@ -21,6 +21,14 @@ import (
 	// "strings"
 )
 
+const debug = false
+
+func debugPrint(content interface{}) {
+	if debug == true {
+		fmt.Println(content)
+	}
+}
+
 type wxweb struct {
 	uuid         string
 	base_uri     string
@@ -77,6 +85,7 @@ func (self *wxweb) _post(urlstr string, params map[string]interface{}, jsonFmt b
 	var resp *http.Response
 	if jsonFmt == true {
 		jsonPost := JsonEncode(params)
+		debugPrint(jsonPost)
 		requestBody := bytes.NewBuffer([]byte(jsonPost))
 		request, err := http.NewRequest("POST", urlstr, requestBody)
 		if err != nil {
@@ -228,19 +237,20 @@ func (self *wxweb) webwxinit(args ...interface{}) bool {
 	self.SyncKey = data["SyncKey"].(map[string]interface{})
 	self._setsynckey()
 
-	//interface float64和float64型不能使用==
-	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(float64)
+	//interface int和int型不能使用==
+	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(int)
 	return retCode == 0
 }
 
 func (self *wxweb) _setsynckey() {
 	keys := []string{}
 	for _, keyVal := range self.SyncKey["List"].([]interface{}) {
-		key := strconv.Itoa(int(keyVal.(map[string]interface{})["Key"].(float64)))
-		value := strconv.Itoa(int(keyVal.(map[string]interface{})["Val"].(float64)))
+		key := strconv.Itoa(int(keyVal.(map[string]interface{})["Key"].(int)))
+		value := strconv.Itoa(int(keyVal.(map[string]interface{})["Val"].(int)))
 		keys = append(keys, key+"_"+value)
 	}
 	self.synckey = strings.Join(keys, "|")
+	debugPrint(self.synckey)
 }
 
 func (self *wxweb) synccheck() (string, string) {
@@ -260,7 +270,7 @@ func (self *wxweb) synccheck() (string, string) {
 	if len(find) > 2 {
 		retcode := find[1]
 		selector := find[2]
-		fmt.Println(fmt.Sprintf("retcode:%s,selector,selector%s", find[1], find[2]))
+		debugPrint(fmt.Sprintf("retcode:%s,selector,selector%s", find[1], find[2]))
 		return retcode, selector
 	} else {
 		return "9999", "0"
@@ -300,7 +310,7 @@ func (self *wxweb) webwxstatusnotify(args ...interface{}) bool {
 		return false
 	}
 	data := JsonDecode(res).(map[string]interface{})
-	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(float64)
+	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(int)
 	return retCode == 0
 }
 
@@ -315,7 +325,7 @@ func (self *wxweb) webwxsync() interface{} {
 		return false
 	}
 	data := JsonDecode(res).(map[string]interface{})
-	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(float64)
+	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(int)
 	if retCode == 0 {
 		self.SyncKey = data["SyncKey"].(map[string]interface{})
 		self._setsynckey()
@@ -325,13 +335,13 @@ func (self *wxweb) webwxsync() interface{} {
 
 func (self *wxweb) handleMsg(r interface{}) {
 	for _, msg := range r.(map[string]interface{})["AddMsgList"].([]interface{}) {
-		fmt.Println("[*] 你有新的消息，请注意查收")
+		// fmt.Println("[*] 你有新的消息，请注意查收")
 		// msg = msg.(map[string]interface{})
-		msgType := msg.(map[string]interface{})["MsgType"].(float64)
+		msgType := msg.(map[string]interface{})["MsgType"].(int)
 		fromUserName := msg.(map[string]interface{})["FromUserName"].(string)
 		// name = self.getUserRemarkName(msg['FromUserName'])
 		content := msg.(map[string]interface{})["Content"].(string)
-		// msgid := msg.(map[string]interface{})["MsgId"].(float64)
+		// msgid := msg.(map[string]interface{})["MsgId"].(int)
 		if msgType == 1 {
 			if fromUserName[:2] == "@@" {
 				fmt.Println("群")
@@ -339,6 +349,8 @@ func (self *wxweb) handleMsg(r interface{}) {
 
 			}
 			fmt.Println(content)
+		} else if msgType == 51 {
+			fmt.Println("[*] 成功截获微信初始化消息")
 		}
 	}
 }
@@ -390,12 +402,16 @@ func (self *wxweb) start() {
 		} else if retcode == "0" {
 			if selector == "2" {
 				r := self.webwxsync()
+				debugPrint(r)
 				switch r.(type) {
 				case bool:
 				default:
 					self.handleMsg(r)
 				}
 			} else if selector == "0" {
+				time.Sleep(1)
+			} else if selector == "6" || selector == "4" {
+				self.webwxsync()
 				time.Sleep(1)
 			}
 		}

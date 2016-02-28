@@ -38,17 +38,35 @@ func JsonDecode(jsonStr string) interface{} {
 		panic(err)
 		return false
 	}
-	// m := f.(map[string]interface{})
-	// for k, v := range m {
-	// 	switch v.(type) {
-	// 	case string:
-	// 		m[k] = v.(string)
-	// 	case int:
-	// 		m[k] = v.(int)
-	// 	case float64:
-	// 		m[k] = int(v.(float64))
-	// }
-	return f
+	return float2Int(f)
+}
+
+func float2Int(input interface{}) interface{} {
+	switch input.(type) {
+	case []interface{}:
+		for k, v := range input.([]interface{}) {
+			switch v.(type) {
+			case float64:
+				input.([]interface{})[k] = int(v.(float64))
+			case []interface{}:
+				input.([]interface{})[k] = float2Int(input.([]interface{})[k])
+			case map[string]interface{}:
+				input.([]interface{})[k] = float2Int(input.([]interface{})[k])
+			}
+		}
+	case map[string]interface{}:
+		for k, v := range input.(map[string]interface{}) {
+			switch v.(type) {
+			case float64:
+				input.(map[string]interface{})[k] = int(v.(float64))
+			case []interface{}:
+				input.(map[string]interface{})[k] = float2Int(input.(map[string]interface{})[k])
+			case map[string]interface{}:
+				input.(map[string]interface{})[k] = float2Int(input.(map[string]interface{})[k])
+			}
+		}
+	}
+	return input
 }
 
 func getConfig(sec string) (map[string]string, error) {
