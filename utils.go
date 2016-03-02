@@ -2,21 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/bitly/go-simplejson" // for json get
 	"github.com/larspensjo/config"
 	"strconv"
 	"time"
+	"strings"
 )
-
-func JsonStrToMap(jsonStr string) map[string]interface{} {
-	json, err := simplejson.NewJson([]byte(jsonStr))
-	if err != nil {
-		panic(err.Error())
-	}
-	var nodes = make(map[string]interface{})
-	nodes, _ = json.Map()
-	return nodes
-}
 
 func GenerateId() string {
 	return strconv.FormatInt(time.Now().UnixNano(), 10)
@@ -32,6 +22,7 @@ func JsonEncode(nodes interface{}) string {
 }
 
 func JsonDecode(jsonStr string) interface{} {
+	jsonStr = strings.Replace(jsonStr, "\n", "", -1)
 	var f interface{}
 	err := json.Unmarshal([]byte(jsonStr), &f)
 	if err != nil {
@@ -42,29 +33,30 @@ func JsonDecode(jsonStr string) interface{} {
 }
 
 func float2Int(input interface{}) interface{} {
-	switch input.(type) {
-	case []interface{}:
-		for k, v := range input.([]interface{}) {
+	if m,ok := input.([]interface{}); ok{
+		for k, v := range m {
 			switch v.(type) {
 			case float64:
-				input.([]interface{})[k] = int(v.(float64))
+				m[k] = int(v.(float64))
 			case []interface{}:
-				input.([]interface{})[k] = float2Int(input.([]interface{})[k])
+				m[k] = float2Int(m[k])
 			case map[string]interface{}:
-				input.([]interface{})[k] = float2Int(input.([]interface{})[k])
+				m[k] = float2Int(m[k])
 			}
 		}
-	case map[string]interface{}:
-		for k, v := range input.(map[string]interface{}) {
+	}else if m,ok := input.(map[string]interface{}); ok{
+		for k, v := range m {
 			switch v.(type) {
 			case float64:
-				input.(map[string]interface{})[k] = int(v.(float64))
+				m[k] = int(v.(float64))
 			case []interface{}:
-				input.(map[string]interface{})[k] = float2Int(input.(map[string]interface{})[k])
+				m[k] = float2Int(m[k])
 			case map[string]interface{}:
-				input.(map[string]interface{})[k] = float2Int(input.(map[string]interface{})[k])
+				m[k] = float2Int(m[k])
 			}
 		}
+	}else{
+		return false
 	}
 	return input
 }
