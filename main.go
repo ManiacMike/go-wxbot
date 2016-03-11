@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	// "net/http"
-	// "log"
+	"log"
+	"net/http"
 )
 
 type ServiceError struct {
@@ -25,20 +25,20 @@ func CheckErr(err error) {
 }
 
 func main() {
-	wx := wxweb{}
-	wx.start()
+	// wx := wxweb{}
+	// wx.start()
 
-	// http.Handle("/message", &ApiServer{ApiName: "message"})
-	//
-	// serverConfig, err := getConfig("server")
-	// if err != nil {
-	// 	log.Fatal("server config error:", err)
-	// }
-	//
-	// fmt.Println("listen on port " + serverConfig["port"])
-	//
-	// if err = http.ListenAndServe(":"+serverConfig["port"], nil); err != nil {
-	// 	log.Fatal("ListenAndServe:", err)
-	// }
+	http.Handle("/message", &ApiServer{ApiName: "message"})
+
+	serverConfig, err := getConfig("server")
+	if err != nil {
+		log.Fatal("server config error:", err)
+	}
+
+	fmt.Println("listen on port " + serverConfig["port"])
+
+	if err = http.ListenAndServe(":"+serverConfig["port"], nil); err != nil {
+		log.Fatal("ListenAndServe:", err)
+	}
 
 }

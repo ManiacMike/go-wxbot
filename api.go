@@ -30,6 +30,25 @@ func randomEmoticon() string {
 	return happy[rand.Intn(len(happy))]
 }
 
+func randomLoveWord() string {
+	words := []string{"我唯一害怕的就是失去你，我感觉你快要消失了",
+		"我养你吧。",
+		"我能遇见你已经不可思议了",
+		"我在未来等你",
+		"我闭着眼睛也看不见自己，但是我却可以看见你",
+		"You are like everything to me now",
+		"这世界上，除了你我别无所求",
+		"有时候我会想你想到无法承受",
+		"多希望我自己知道怎么放弃你",
+		"我已经爱上你一个星期了，记得吗",
+		"送花啊，牵手啊，生日礼物这些我都不擅长，但要是说到结婚，我只希望可以娶你",
+		"我真是大笨蛋，除了喜欢你什么都不知道",
+		"该死，我记不起其他没有你的地方了",
+		"为什么喜欢你，我好像也不知道，但我知道没有别人会比我更喜欢你"}
+	rand.Seed(time.Now().Unix())
+	return words[rand.Intn(len(words))]
+}
+
 func (this *ApiServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch this.ApiName {
 	case "message":
@@ -59,6 +78,10 @@ func getAnswer(msg string, uid string, robotName string) (string, error) {
 	var reply string
 	if strings.Contains(msg, "颜文字") {
 		e := randomEmoticon()
+		return e, nil
+	}
+	if strings.Contains(msg, "撩我") {
+		e := randomLoveWord()
 		return e, nil
 	}
 	turingConfig, _ := getConfig("turing")

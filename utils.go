@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"github.com/larspensjo/config"
 	"strconv"
-	"time"
 	"strings"
+	"time"
 )
 
 func GenerateId() string {
@@ -33,7 +33,7 @@ func JsonDecode(jsonStr string) interface{} {
 }
 
 func float2Int(input interface{}) interface{} {
-	if m,ok := input.([]interface{}); ok{
+	if m, ok := input.([]interface{}); ok {
 		for k, v := range m {
 			switch v.(type) {
 			case float64:
@@ -44,7 +44,7 @@ func float2Int(input interface{}) interface{} {
 				m[k] = float2Int(m[k])
 			}
 		}
-	}else if m,ok := input.(map[string]interface{}); ok{
+	} else if m, ok := input.(map[string]interface{}); ok {
 		for k, v := range m {
 			switch v.(type) {
 			case float64:
@@ -55,7 +55,7 @@ func float2Int(input interface{}) interface{} {
 				m[k] = float2Int(m[k])
 			}
 		}
-	}else{
+	} else {
 		return false
 	}
 	return input
