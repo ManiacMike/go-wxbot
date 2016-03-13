@@ -10,6 +10,7 @@ import (
 	"encoding/xml"
 	"io"
 	"io/ioutil"
+	"math"
 	"math/rand"
 	"net/url"
 	"os"
@@ -104,15 +105,16 @@ func (self *wxweb) _post(urlstr string, params map[string]interface{}, jsonFmt b
 		resp, err = self.http_client.PostForm(urlstr, v)
 	}
 
-	if err != nil {
+	if err != nil || resp == nil {
 		fmt.Println(err)
 		return "", err
 	}
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
 		return "", err
+	} else {
+		defer resp.Body.Close()
 	}
 	return string(body), nil
 }
@@ -314,6 +316,76 @@ func (self *wxweb) webwxstatusnotify(args ...interface{}) bool {
 	return retCode == 0
 }
 
+func (self *wxweb) webgetchatroommember(chatroomId string) (map[string]string, error) {
+	urlstr := fmt.Sprintf("%s/webwxbatchgetcontact?type=ex&r=%s&pass_ticket=%s", self.base_uri, self._unixStr(), self.pass_ticket)
+	params := make(map[string]interface{})
+	params["BaseRequest"] = self.BaseRequest
+	params["Count"] = 1
+	params["List"] = map[string]string{
+		"UserName":   chatroomId,
+		"ChatRoomId": "",
+	}
+	members := []string{}
+	stats := make(map[string]string)
+	res, err := self._post(urlstr, params, true)
+	if err != nil {
+		return stats, err
+	}
+	data := JsonDecode(res).(map[string]interface{})
+	RoomContactList := data["ContactList"].([]interface{})[0].(map[string]interface{})["MemberList"]
+	man := 0
+	woman := 0
+	for _, v := range RoomContactList.([]interface{}) {
+		if m, ok := v.([]interface{}); ok {
+			for _, s := range m {
+				members = append(members, s.(string))
+			}
+		} else {
+			members = append(members, v.(string))
+		}
+	}
+	urlstr = fmt.Sprintf("%s/webwxbatchgetcontact?type=ex&r=%s&pass_ticket=%s", self.base_uri, self._unixStr(), self.pass_ticket)
+	length := 50
+	block := int(math.Ceil(float64(len(members)) / float64(length)))
+	k := 0
+	for k < block {
+		offset := k * length
+		blockmembers := members[offset : offset+length]
+		params := make(map[string]interface{})
+		params["BaseRequest"] = self.BaseRequest
+		params["Count"] = 1
+		blockmemberslist := []map[string]string{}
+		for _, g := range blockmembers {
+			blockmemberslist = append(blockmemberslist, map[string]string{
+				"UserName":        g,
+				"EncryChatRoomId": chatroomId,
+			})
+		}
+		params["List"] = map[string]interface{}{
+			"UserName": chatroomId,
+			"Count":    len(blockmembers),
+			"List":     blockmemberslist,
+		}
+		dic, err := self._post(urlstr, params, true)
+		if err != nil {
+			userlist := JsonDecode(dic).(map[string]interface{})["ContactList"]
+			for _, u := range userlist.([]interface{}) {
+				if u.(map[string]int)["Sex"] == 1 {
+					man++
+				} else if u.(map[string]int)["Sex"] == 2 {
+					woman++
+				}
+			}
+		}
+		k++
+	}
+	stats = map[string]string{
+		"woman": strconv.Itoa(woman),
+		"man":   strconv.Itoa(man),
+	}
+	return stats, nil
+}
+
 func (self *wxweb) webwxsync() interface{} {
 	urlstr := fmt.Sprintf("%s/webwxsync?sid=%s&skey=%s&pass_ticket=%s", self.base_uri, self.sid, self.skey, self.pass_ticket)
 	params := make(map[string]interface{})
@@ -357,12 +429,22 @@ func (self *wxweb) handleMsg(r interface{}) {
 					realcontent := strings.TrimSpace(strings.Replace(content, "@"+myNickName, "", 1))
 					debugPrint(realcontent)
 					if realcontent == "统计人数" {
-						// stat = self.webgetchatroommember(msg['FromUserName'])
-						// ans = "据统计群里男生"+str(stat["man"])+"人，女生"+str(stat["woman"])+"人 (ó㉨ò)"
-						ans = "test"
+						stat, err := self.webgetchatroommember(fromUserName)
+						if err != nil {
+							ans = "据统计群里男生" + stat["man"] + "人，女生" + stat["woman"] + "人 (ó㉨ò)"
+						}
+						// ans = "test"
 					} else {
 						ans, err = self.getReplyByApi(realcontent, fromUserName)
 					}
+				} else if strings.Contains(content, "撩@") {
+					name := strings.Replace(content, "撩@", "", 1)
+					ans, err = self.getReplyByApi(LOVEWORDS_QUEST, fromUserName)
+					if err == nil {
+						ans = "@" + name + " " + ans
+					}
+				} else if content == "撩我" {
+					ans, err = self.getReplyByApi(LOVEWORDS_QUEST, fromUserName)
 				}
 			} else {
 				ans, err = self.getReplyByApi(content, fromUserName)

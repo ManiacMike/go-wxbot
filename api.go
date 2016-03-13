@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+const (
+	EMOTICON_QUEST  = "颜文字"
+	LOVEWORDS_QUEST = "lovewords"
+)
+
 type ApiServer struct {
 	ApiName string
 }
@@ -44,6 +49,8 @@ func randomLoveWord() string {
 		"送花啊，牵手啊，生日礼物这些我都不擅长，但要是说到结婚，我只希望可以娶你",
 		"我真是大笨蛋，除了喜欢你什么都不知道",
 		"该死，我记不起其他没有你的地方了",
+		"眼睛，是你的眼睛，我知道为什么喜欢你了",
+		"我喜欢你的一切，特别是你呆呆傻傻的样子",
 		"为什么喜欢你，我好像也不知道，但我知道没有别人会比我更喜欢你"}
 	rand.Seed(time.Now().Unix())
 	return words[rand.Intn(len(words))]
@@ -76,11 +83,11 @@ func (this *ApiServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func getAnswer(msg string, uid string, robotName string) (string, error) {
 	fmt.Println(msg)
 	var reply string
-	if strings.Contains(msg, "颜文字") {
+	if strings.Contains(msg, EMOTICON_QUEST) {
 		e := randomEmoticon()
 		return e, nil
 	}
-	if strings.Contains(msg, "撩我") {
+	if msg == LOVEWORDS_QUEST {
 		e := randomLoveWord()
 		return e, nil
 	}
