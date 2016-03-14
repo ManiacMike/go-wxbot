@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -147,7 +148,6 @@ func (self *wxweb) _unixStr() string {
 	return strconv.Itoa(int(time.Now().Unix()))
 }
 
-//TODO support linux
 func (self *wxweb) genQRcode(args ...interface{}) bool {
 	urlstr := "https://login.weixin.qq.com/qrcode/" + self.uuid
 	urlstr += "?t=webwx"
@@ -159,7 +159,18 @@ func (self *wxweb) genQRcode(args ...interface{}) bool {
 	if err != nil {
 		return false
 	} else {
-		exec.Command("open", path).Run()
+		if runtime.GOOS == "darwin" {
+			exec.Command("open", path).Run()
+		} else {
+			go func() {
+				fmt.Println("please open on web broswer ip:8889/qrcode")
+				http.HandleFunc("/code", func(w http.ResponseWriter, req *http.Request) {
+					http.ServeFile(w, req, "qrcode.jpg")
+					return
+				})
+				http.ListenAndServe(":8889", nil)
+			}()
+		}
 		return true
 	}
 }
@@ -321,13 +332,17 @@ func (self *wxweb) webgetchatroommember(chatroomId string) (map[string]string, e
 	params := make(map[string]interface{})
 	params["BaseRequest"] = self.BaseRequest
 	params["Count"] = 1
-	params["List"] = map[string]string{
+	params["List"] = []map[string]string{}
+	l := []map[string]string{}
+	params["List"] = append(l, map[string]string{
 		"UserName":   chatroomId,
 		"ChatRoomId": "",
-	}
+	})
 	members := []string{}
 	stats := make(map[string]string)
 	res, err := self._post(urlstr, params, true)
+	fmt.Println(urlstr)
+	debugPrint(params)
 	if err != nil {
 		return stats, err
 	}
@@ -338,22 +353,30 @@ func (self *wxweb) webgetchatroommember(chatroomId string) (map[string]string, e
 	for _, v := range RoomContactList.([]interface{}) {
 		if m, ok := v.([]interface{}); ok {
 			for _, s := range m {
-				members = append(members, s.(string))
+				members = append(members, s.(map[string]interface{})["UserName"].(string))
 			}
 		} else {
-			members = append(members, v.(string))
+			members = append(members, v.(map[string]interface{})["UserName"].(string))
 		}
 	}
 	urlstr = fmt.Sprintf("%s/webwxbatchgetcontact?type=ex&r=%s&pass_ticket=%s", self.base_uri, self._unixStr(), self.pass_ticket)
 	length := 50
-	block := int(math.Ceil(float64(len(members)) / float64(length)))
+	debugPrint(members)
+	mnum := len(members)
+	block := int(math.Ceil(float64(mnum) / float64(length)))
 	k := 0
 	for k < block {
 		offset := k * length
-		blockmembers := members[offset : offset+length]
+		var l int
+		if offset+length > mnum {
+			l = mnum
+		} else {
+			l = offset + length
+		}
+		blockmembers := members[offset:l]
 		params := make(map[string]interface{})
 		params["BaseRequest"] = self.BaseRequest
-		params["Count"] = 1
+		params["Count"] = len(blockmembers)
 		blockmemberslist := []map[string]string{}
 		for _, g := range blockmembers {
 			blockmemberslist = append(blockmemberslist, map[string]string{
@@ -361,18 +384,17 @@ func (self *wxweb) webgetchatroommember(chatroomId string) (map[string]string, e
 				"EncryChatRoomId": chatroomId,
 			})
 		}
-		params["List"] = map[string]interface{}{
-			"UserName": chatroomId,
-			"Count":    len(blockmembers),
-			"List":     blockmemberslist,
-		}
+		params["List"] = blockmemberslist
+		debugPrint(urlstr)
+		debugPrint(params)
 		dic, err := self._post(urlstr, params, true)
-		if err != nil {
+		if err == nil {
+			debugPrint("flag")
 			userlist := JsonDecode(dic).(map[string]interface{})["ContactList"]
 			for _, u := range userlist.([]interface{}) {
-				if u.(map[string]int)["Sex"] == 1 {
+				if u.(map[string]interface{})["Sex"].(int) == 1 {
 					man++
-				} else if u.(map[string]int)["Sex"] == 2 {
+				} else if u.(map[string]interface{})["Sex"].(int) == 2 {
 					woman++
 				}
 			}
@@ -430,15 +452,15 @@ func (self *wxweb) handleMsg(r interface{}) {
 					debugPrint(realcontent)
 					if realcontent == "统计人数" {
 						stat, err := self.webgetchatroommember(fromUserName)
-						if err != nil {
+						if err == nil {
 							ans = "据统计群里男生" + stat["man"] + "人，女生" + stat["woman"] + "人 (ó㉨ò)"
 						}
-						// ans = "test"
 					} else {
 						ans, err = self.getReplyByApi(realcontent, fromUserName)
 					}
 				} else if strings.Contains(content, "撩@") {
 					name := strings.Replace(content, "撩@", "", 1)
+					name = strings.Replace(name, "\u003cbr/\u003e", "", 1)
 					ans, err = self.getReplyByApi(LOVEWORDS_QUEST, fromUserName)
 					if err == nil {
 						ans = "@" + name + " " + ans
