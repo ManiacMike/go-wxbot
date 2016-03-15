@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"fmt"
 )
 
 func GenerateId() string {
@@ -26,6 +27,7 @@ func JsonDecode(jsonStr string) interface{} {
 	var f interface{}
 	err := json.Unmarshal([]byte(jsonStr), &f)
 	if err != nil {
+		fmt.Println(jsonStr)
 		panic(err)
 		return false
 	}
