@@ -164,7 +164,7 @@ func (self *wxweb) genQRcode(args ...interface{}) bool {
 		} else {
 			go func() {
 				fmt.Println("please open on web broswer ip:8889/qrcode")
-				http.HandleFunc("/code", func(w http.ResponseWriter, req *http.Request) {
+				http.HandleFunc("/qrcode", func(w http.ResponseWriter, req *http.Request) {
 					http.ServeFile(w, req, "qrcode.jpg")
 					return
 				})
