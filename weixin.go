@@ -415,7 +415,7 @@ func (self *wxweb) webwxsync() interface{} {
 	params["SyncKey"] = self.SyncKey
 	params["rr"] = ^int(time.Now().Unix())
 	res, err := self._post(urlstr, params, true)
-	if err != nil {
+	if err != nil || res == nil{
 		return false
 	}
 	data := JsonDecode(res).(map[string]interface{})
