@@ -109,6 +109,9 @@ func getAnswer(msg string, uid string, robotName string) (string, error) {
 	}
 	fmt.Println(string(body))
 	replyMap := JsonDecode(string(body)).(map[string]interface{})
+	if _,ok := replyMap["code"];ok == false{
+		return "不知道你在说虾米～",nil
+	}
 	code := replyMap["code"].(int)
 	if code == 100000 {
 		reply = replyMap["text"].(string)
