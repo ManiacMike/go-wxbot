@@ -292,8 +292,8 @@ func (self *wxweb) synccheck() (string, string) {
 
 func (self *wxweb) testsynccheck(args ...interface{}) bool {
 	SyncHost := []string{
-		"webpush.weixin.qq.com",
-		"webpush2.weixin.qq.com",
+		"webpush.wx.qq.com",
+		"webpush2.wx.qq.com",
 		"webpush.wechat.com",
 		"webpush1.wechat.com",
 		"webpush2.wechat.com",
@@ -444,12 +444,13 @@ func (self *wxweb) handleMsg(r interface{}) {
 			var ans string
 			var err error
 			if fromUserName[:2] == "@@" {
+				debugPrint(content + "|0045")
 				contentSlice := strings.Split(content, ":<br/>")
 				// people := contentSlice[0]
 				content = contentSlice[1]
 				if strings.Contains(content, "@"+myNickName) {
 					realcontent := strings.TrimSpace(strings.Replace(content, "@"+myNickName, "", 1))
-					debugPrint(realcontent)
+					debugPrint(realcontent + "|0046")
 					if realcontent == "统计人数" {
 						stat, err := self.webgetchatroommember(fromUserName)
 						if err == nil {
