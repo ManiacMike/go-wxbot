@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -108,7 +109,12 @@ func getAnswer(msg string, uid string, robotName string) (string, error) {
 		return "", Error("request fail")
 	}
 	fmt.Println(string(body))
-	replyMap := JsonDecode(string(body)).(map[string]interface{})
+
+	replyMap := make(map[string]interface{})
+	err = json.Unmarshal(body, &replyMap)
+	if err != nil {
+		return "", Error("json decode fail")
+	}
 	if _,ok := replyMap["code"];ok == false{
 		return "不知道你在说虾米～",nil
 	}

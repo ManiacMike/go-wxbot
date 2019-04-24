@@ -1,35 +1,14 @@
 package main
 
 import (
-	"encoding/json"
-	"github.com/larspensjo/config"
 	"strconv"
-	"strings"
 	"time"
+
+	"github.com/larspensjo/config"
 )
 
 func GenerateId() string {
 	return strconv.FormatInt(time.Now().UnixNano(), 10)
-}
-
-func JsonEncode(nodes interface{}) string {
-	body, err := json.Marshal(nodes)
-	if err != nil {
-		panic(err.Error())
-		return "[]"
-	}
-	return string(body)
-}
-
-func JsonDecode(jsonStr string) interface{} {
-	jsonStr = strings.Replace(jsonStr, "\n", "", -1)
-	var f interface{}
-	err := json.Unmarshal([]byte(jsonStr), &f)
-	if err != nil {
-		panic(err)
-		return false
-	}
-	return float2Int(f)
 }
 
 func float2Int(input interface{}) interface{} {

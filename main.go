@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	// "log"
 	// "net/http"
@@ -18,27 +19,18 @@ func Error(msg string) error {
 	return &ServiceError{msg}
 }
 
-func CheckErr(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
+const (
+	Version = "0.1.0"
+)
+
+var debug = flag.String("d", "off", "if on debug mode")
 
 func main() {
+
+	flag.Parse()
+
+	fmt.Printf("debug mode %s\n", *debug)
+
 	wx := wxweb{}
 	wx.start()
-
-	// http.Handle("/message", &ApiServer{ApiName: "message"})
-	//
-	// serverConfig, err := getConfig("server")
-	// if err != nil {
-	// 	log.Fatal("server config error:", err)
-	// }
-	//
-	// fmt.Println("listen on port " + serverConfig["port"])
-	//
-	// if err = http.ListenAndServe(":"+serverConfig["port"], nil); err != nil {
-	// 	log.Fatal("ListenAndServe:", err)
-	// }
-
 }
