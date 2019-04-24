@@ -1,1 +1,5 @@
 config.ini
+*.exe
+*.jpg
+*.txt
+*.log

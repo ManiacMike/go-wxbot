@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
+
 	// "log"
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"io"
 	"io/ioutil"
@@ -82,16 +84,20 @@ func (self *wxweb) _run(desc string, f func(...interface{}) bool, args ...interf
 	}
 }
 
-func (self *wxweb) _post(urlstr string, params map[string]interface{}, jsonFmt bool) (string, error) {
+func (self *wxweb) _post(urlstr string, params map[string]interface{}, jsonFmt bool) ([]byte, error) {
 	var err error
 	var resp *http.Response
 	if jsonFmt == true {
-		jsonPost := JsonEncode(params)
+		jsonPost, err := json.Marshal(params)
+		if err != nil {
+			return []byte(""), Error("json encode fail")
+		}
+
 		debugPrint(jsonPost)
 		requestBody := bytes.NewBuffer([]byte(jsonPost))
 		request, err := http.NewRequest("POST", urlstr, requestBody)
 		if err != nil {
-			return "", err
+			return []byte(""), err
 		}
 		request.Header.Set("Content-Type", "application/json;charset=utf-8")
 		request.Header.Add("Referer", "https://wx.qq.com/")
@@ -108,16 +114,16 @@ func (self *wxweb) _post(urlstr string, params map[string]interface{}, jsonFmt b
 
 	if err != nil || resp == nil {
 		fmt.Println(err)
-		return "", err
+		return []byte(""), err
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
-		return "", err
+		return []byte(""), err
 	} else {
 		defer resp.Body.Close()
 	}
-	return string(body), nil
+	return body, nil
 }
 
 func (self *wxweb) _get(urlstr string, jsonFmt bool) (string, error) {
@@ -163,7 +169,6 @@ func (self *wxweb) genQRcode(args ...interface{}) bool {
 			exec.Command("open", path).Run()
 		} else {
 			go func() {
-				fmt.Println("please open on web broswer ip:8889/qrcode")
 				http.HandleFunc("/qrcode", func(w http.ResponseWriter, req *http.Request) {
 					http.ServeFile(w, req, "qrcode.jpg")
 					return
@@ -241,25 +246,25 @@ func (self *wxweb) webwxinit(args ...interface{}) bool {
 	if err != nil {
 		return false
 	}
-	//log
 	ioutil.WriteFile("tmp.txt", []byte(res), 777)
-	//log
-
-	data := JsonDecode(res).(map[string]interface{})
+	data := make(map[string]interface{})
+	err = json.Unmarshal(res, &data)
+	if err != nil {
+		return false
+	}
 	self.User = data["User"].(map[string]interface{})
 	self.SyncKey = data["SyncKey"].(map[string]interface{})
 	self._setsynckey()
 
-	//interface int和int型不能使用==
-	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(int)
+	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(float64)
 	return retCode == 0
 }
 
 func (self *wxweb) _setsynckey() {
 	keys := []string{}
 	for _, keyVal := range self.SyncKey["List"].([]interface{}) {
-		key := strconv.Itoa(int(keyVal.(map[string]interface{})["Key"].(int)))
-		value := strconv.Itoa(int(keyVal.(map[string]interface{})["Val"].(int)))
+		key := strconv.Itoa(int(keyVal.(map[string]interface{})["Key"].(float64)))
+		value := strconv.Itoa(int(keyVal.(map[string]interface{})["Val"].(float64)))
 		keys = append(keys, key+"_"+value)
 	}
 	self.synckey = strings.Join(keys, "|")
@@ -322,8 +327,12 @@ func (self *wxweb) webwxstatusnotify(args ...interface{}) bool {
 	if err != nil {
 		return false
 	}
-	data := JsonDecode(res).(map[string]interface{})
-	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(int)
+	data := make(map[string]interface{})
+	err = json.Unmarshal(res, &data)
+	if err != nil {
+		return false
+	}
+	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(float64)
 	return retCode == 0
 }
 
@@ -346,7 +355,11 @@ func (self *wxweb) webgetchatroommember(chatroomId string) (map[string]string, e
 	if err != nil {
 		return stats, err
 	}
-	data := JsonDecode(res).(map[string]interface{})
+	data := make(map[string]interface{})
+	err = json.Unmarshal(res, &data)
+	if err != nil {
+		return stats, err
+	}
 	RoomContactList := data["ContactList"].([]interface{})[0].(map[string]interface{})["MemberList"]
 	man := 0
 	woman := 0
@@ -389,13 +402,16 @@ func (self *wxweb) webgetchatroommember(chatroomId string) (map[string]string, e
 		debugPrint(params)
 		dic, err := self._post(urlstr, params, true)
 		if err == nil {
-			debugPrint("flag")
-			userlist := JsonDecode(dic).(map[string]interface{})["ContactList"]
-			for _, u := range userlist.([]interface{}) {
-				if u.(map[string]interface{})["Sex"].(int) == 1 {
-					man++
-				} else if u.(map[string]interface{})["Sex"].(int) == 2 {
-					woman++
+			userlistTmp := make(map[string]interface{})
+			err = json.Unmarshal(dic, &userlistTmp)
+			if err == nil {
+				userlist := userlistTmp["ContactList"]
+				for _, u := range userlist.([]interface{}) {
+					if u.(map[string]interface{})["Sex"].(float64) == 1 {
+						man++
+					} else if u.(map[string]interface{})["Sex"].(float64) == 2 {
+						woman++
+					}
 				}
 			}
 		}
@@ -415,11 +431,15 @@ func (self *wxweb) webwxsync() interface{} {
 	params["SyncKey"] = self.SyncKey
 	params["rr"] = ^int(time.Now().Unix())
 	res, err := self._post(urlstr, params, true)
-	if err != nil{
+	if err != nil {
 		return false
 	}
-	data := JsonDecode(res).(map[string]interface{})
-	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(int)
+	data := make(map[string]interface{})
+	err = json.Unmarshal(res, &data)
+	if err != nil {
+		return false
+	}
+	retCode := data["BaseResponse"].(map[string]interface{})["Ret"].(float64)
 	if retCode == 0 {
 		self.SyncKey = data["SyncKey"].(map[string]interface{})
 		self._setsynckey()
@@ -432,14 +452,14 @@ func (self *wxweb) handleMsg(r interface{}) {
 	for _, msg := range r.(map[string]interface{})["AddMsgList"].([]interface{}) {
 		// fmt.Println("[*] 你有新的消息，请注意查收")
 		// msg = msg.(map[string]interface{})
-		msgType := msg.(map[string]interface{})["MsgType"].(int)
+		msgType := msg.(map[string]interface{})["MsgType"].(float64)
 		fromUserName := msg.(map[string]interface{})["FromUserName"].(string)
 		// name = self.getUserRemarkName(msg['FromUserName'])
 		content := msg.(map[string]interface{})["Content"].(string)
 		content = strings.Replace(content, "&lt;", "<", -1)
 		content = strings.Replace(content, "&gt;", ">", -1)
 		content = strings.Replace(content, " ", " ", 1)
-		// msgid := msg.(map[string]interface{})["MsgId"].(int)
+		// msgid := msg.(map[string]interface{})["MsgId"].(float64)
 		if msgType == 1 {
 			var ans string
 			var err error
@@ -533,7 +553,11 @@ func (self *wxweb) start() {
 	self._init()
 	self._run("[*] 正在获取 uuid ... ", self.getUuid)
 	self._run("[*] 正在获取 二维码 ... ", self.genQRcode)
-	fmt.Println("[*] 请使用微信扫描二维码以登录 ... ")
+	if runtime.GOOS == "darwin" {
+		fmt.Println("[*] 请使用微信扫描二维码以登录 ... ")
+	} else {
+		fmt.Println("[*] 打开链接扫码登录 http://127.0.0.1:8889/qrcode")
+	}
 	for {
 		if self.waitForLogin(1) == false {
 			continue
@@ -576,7 +600,7 @@ func (self *wxweb) start() {
 
 }
 
-func forgeheadget(urlstr string) string {
+func forgeheadget(urlstr string) ([]byte, error) {
 
 	client := &http.Client{}
 
@@ -596,6 +620,9 @@ func forgeheadget(urlstr string) string {
 	reqest.Header.Add("Upgrade-Insecure-Requests", "1")
 	reqest.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36")
 	response, err := client.Do(reqest)
+	if err != nil {
+		return []byte(""), err
+	}
 	defer response.Body.Close()
 
 	if err != nil {
@@ -603,5 +630,5 @@ func forgeheadget(urlstr string) string {
 		os.Exit(0)
 	}
 	body, _ := ioutil.ReadAll(response.Body)
-	return string(body)
+	return body, nil
 }
