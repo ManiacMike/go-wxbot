@@ -450,7 +450,7 @@ func (self *wxweb) webwxsync() interface{} {
 func (self *wxweb) handleMsg(r interface{}) {
 	myNickName := self.User["NickName"].(string)
 	for _, msg := range r.(map[string]interface{})["AddMsgList"].([]interface{}) {
-		// fmt.Println("[*] 你有新的消息，请注意查收")
+		fmt.Println("[*] 你有新的消息，请注意查收")
 		// msg = msg.(map[string]interface{})
 		msgType := msg.(map[string]interface{})["MsgType"].(float64)
 		fromUserName := msg.(map[string]interface{})["FromUserName"].(string)
