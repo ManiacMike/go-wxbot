@@ -3,3 +3,4 @@ config.ini
 *.jpg
 *.txt
 *.log
+.vscode
