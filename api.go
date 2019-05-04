@@ -115,10 +115,10 @@ func getAnswer(msg string, uid string, robotName string) (string, error) {
 	if err != nil {
 		return "", Error("json decode fail")
 	}
-	if _,ok := replyMap["code"];ok == false{
-		return "不知道你在说虾米～",nil
+	if _, ok := replyMap["code"]; ok == false {
+		return "不知道你在说虾米～", nil
 	}
-	code := replyMap["code"].(int)
+	code := replyMap["code"].(float64)
 	if code == 100000 {
 		reply = replyMap["text"].(string)
 	} else if code == 200000 {
