@@ -19,3 +19,8 @@ base_url = http://www.tuling123.com/openapi/api
 key = xxxxxxxxxxx
 ~~~
 
+项目目录下运行go build
+
+然后运行就可以了
+ ./go-wxbot.exe（win)
+ ./go-wxbot（unix)
