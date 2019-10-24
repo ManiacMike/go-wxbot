@@ -21,6 +21,6 @@ key = xxxxxxxxxxx
 
 项目目录下运行go build
 
-然后运行就可以了
- ./go-wxbot.exe（win)
- ./go-wxbot（unix)
+然后运行二进制文件就可以了
+ ./go-wxbot.exe(win)
+ ./go-wxbot(unix)
