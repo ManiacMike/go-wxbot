@@ -3,10 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
-	"net/http"
-	"net/url"
 	"strings"
 	"time"
 )
@@ -16,8 +13,52 @@ const (
 	LOVEWORDS_QUEST = "lovewords"
 )
 
-type ApiServer struct {
-	ApiName string
+type TuringInputText struct {
+	Text string `json:"text"`
+}
+
+type TuringPerception struct {
+	InputText TuringInputText `json:"inputText"`
+}
+
+type TuringUserInfo struct {
+	ApiKey string `json:"apiKey"`
+
+	UserId string `json:"userId"`
+
+	GroupId string `json:"groupId"`
+
+	UserIdName string `json:"userIdName"`
+}
+
+type TuringApiIntent struct {
+	Code int16 `json:"code"`
+
+	IntentName string `json:"intentName"`
+
+	ActionName string `json:"actionName"`
+}
+
+type TuringApiResult struct {
+	ResultType string `json:"resultType"`
+
+	Values []TuringInputText `json:"values"`
+
+	GroupType int16 `json:"groupType"`
+}
+
+type TuringApiRequest struct {
+	ReqType int16 `json:"reqType"`
+
+	Perception *TuringPerception `json:"perception"`
+
+	UserInfo *TuringUserInfo `json:"userInfo"`
+}
+
+type TuringApiResponse struct {
+	Intent *TuringApiIntent `json:"intent"`
+
+	Results []TuringApiResult `json:"results"`
 }
 
 func randomEmoticon() string {
@@ -57,33 +98,8 @@ func randomLoveWord() string {
 	return words[rand.Intn(len(words))]
 }
 
-func (this *ApiServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	switch this.ApiName {
-	case "message":
-		msg := r.PostFormValue("msg")
-		uid := r.PostFormValue("uid")
-		robotName := r.PostFormValue("robot")
-		if uid == "" {
-			uid = "myself"
-		}
-		if robotName == "" {
-			fmt.Println("robot名字未定义")
-			return
-		}
-		reply, err := getAnswer(msg, uid, robotName)
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			fmt.Fprint(w, reply)
-		}
-	default:
-		fmt.Fprint(w, "Invalid api")
-	}
-}
-
-func getAnswer(msg string, uid string, robotName string) (string, error) {
+func getAnswer(msg string, uid string, groupId string, userIdName string, robotName string) (string, error) {
 	fmt.Println(msg)
-	var reply string
 	if strings.Contains(msg, EMOTICON_QUEST) {
 		e := randomEmoticon()
 		return e, nil
@@ -99,36 +115,55 @@ func getAnswer(msg string, uid string, robotName string) (string, error) {
 	} else if _, exist := robotConfig["key"]; exist == false {
 		return "", Error("robot配置未定义")
 	}
-	resp, err := http.PostForm(turingConfig["base_url"], url.Values{"uid": {uid}, "key": {robotConfig["key"]}, "info": {msg}})
-	if err != nil {
-		return "", Error("request fail")
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", Error("request fail")
-	}
-	fmt.Println(string(body))
 
-	replyMap := make(map[string]interface{})
-	err = json.Unmarshal(body, &replyMap)
-	if err != nil {
-		return "", Error("json decode fail")
+	text := TuringInputText{
+		Text: msg,
 	}
-	if _, ok := replyMap["code"]; ok == false {
-		return "不知道你在说虾米～", nil
+
+	perception := &TuringPerception{
+		InputText: text,
 	}
-	code := replyMap["code"].(float64)
-	if code == 100000 {
-		reply = replyMap["text"].(string)
-	} else if code == 200000 {
-		reply = "给你个链接接着  " + replyMap["url"].(string)
-	} else if code == 40002 {
-		reply = "不知道你在说虾米～"
-	} else if code == 40004 {
-		reply = "今天太累了，明天再聊吧"
+
+	userInfo := &TuringUserInfo{
+		ApiKey: robotConfig["key"],
+		UserId: uid,
+		GroupId: groupId,
+		UserIdName: userIdName,
+	}
+
+	apiReq := &TuringApiRequest{
+		ReqType: 0,
+		Perception: perception,
+		UserInfo: userInfo,
+	}
+
+	jsonBody, err := SimpleHttpPost(turingConfig["base_url"], apiReq)
+	if err == nil {
+		fmt.Println(string(jsonBody))
+		var response *TuringApiResponse
+		err := json.Unmarshal(jsonBody, &response)
+		if err != nil {
+			return "", err
+		} else {
+			if response.Intent.Code != 10005{
+				return "我累了", nil
+			}
+			resultLen := len(response.Results)
+			if resultLen < 1{
+				return "", Error("")
+			}
+			result := response.Results[0]
+			if len(result.Values) < 1{
+				return "", Error("")
+			}
+			text := result.Values[0]
+			if text.Text != ""{
+				return "我累了", nil
+			}else{
+				return text.Text, nil
+			}
+		}
 	} else {
-		reply = "哦"
+		return "", err
 	}
-	return reply, nil
 }

@@ -475,20 +475,20 @@ func (self *wxweb) handleMsg(r interface{}) {
 							ans = "据统计群里男生" + stat["man"] + "人，女生" + stat["woman"] + "人 (ó㉨ò)"
 						}
 					} else {
-						ans, err = self.getReplyByApi(realcontent, fromUserName)
+						ans, err = self.getReplyByApi(realcontent, "", fromUserName, "")
 					}
 				} else if strings.Contains(content, "撩@") {
 					name := strings.Replace(content, "撩@", "", 1)
 					name = strings.Replace(name, "\u003cbr/\u003e", "", 1)
-					ans, err = self.getReplyByApi(LOVEWORDS_QUEST, fromUserName)
+					ans, err = self.getReplyByApi(LOVEWORDS_QUEST, "", fromUserName, "")
 					if err == nil {
 						ans = "@" + name + " " + ans
 					}
 				} else if content == "撩我" {
-					ans, err = self.getReplyByApi(LOVEWORDS_QUEST, fromUserName)
+					ans, err = self.getReplyByApi(LOVEWORDS_QUEST, "", fromUserName, "")
 				}
 			} else {
-				ans, err = self.getReplyByApi(content, fromUserName)
+				ans, err = self.getReplyByApi(content, fromUserName, "", "")
 			}
 			debugPrint(ans)
 			debugPrint(content)
@@ -503,8 +503,8 @@ func (self *wxweb) handleMsg(r interface{}) {
 	}
 }
 
-func (self *wxweb) getReplyByApi(realcontent string, fromUserName string) (string, error) {
-	return getAnswer(realcontent, fromUserName, self.User["NickName"].(string))
+func (self *wxweb) getReplyByApi(realcontent, fromUserName, groupId, userIdName string) (string, error) {
+	return getAnswer(realcontent, fromUserName, groupId, userIdName, self.User["nickName"].(string))
 }
 
 func (self *wxweb) webwxsendmsg(message string, toUseNname string) bool {

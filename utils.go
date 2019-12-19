@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"github.com/larspensjo/config"
+	"io/ioutil"
+	"net/http"
 	"strconv"
 	"time"
-
-	"github.com/larspensjo/config"
 )
 
 func GenerateId() string {
@@ -64,4 +67,39 @@ func getConfig(sec string) (map[string]string, error) {
 		break
 	}
 	return targetConfig, nil
+}
+
+func SimpleHttpPost(urlstr string, params interface{}) ([]byte, error) {
+	var (
+		err  error
+		resp *http.Response
+	)
+	httpclient := http.Client{
+		CheckRedirect: nil,
+		Jar:           nil,
+	}
+	jsonPost, err := json.Marshal(params)
+	if err != nil {
+		return []byte(""), Error("json encode fail")
+	}
+	requestBody := bytes.NewBuffer([]byte(jsonPost))
+	request, err := http.NewRequest("POST", urlstr, requestBody)
+	if err != nil {
+		return []byte(""), err
+	}
+	// request.Header.Set("Content-Type", "application/json;charset=utf-8")
+	// request.Header.Add("Referer", "https://wx.qq.com/")
+	// request.Header.Add("User-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.111 Safari/537.36")
+	resp, err = httpclient.Do(request)
+
+	if err != nil || resp == nil {
+		return []byte(""), err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return []byte(""), err
+	} else {
+		defer resp.Body.Close()
+	}
+	return body, nil
 }
