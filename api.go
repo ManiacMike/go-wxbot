@@ -9,29 +9,35 @@ import (
 )
 
 const (
-	EMOTICON_QUEST  = "颜文字"
-	LOVEWORDS_QUEST = "lovewords"
+	//EmoticonQuest 颜文字指令关键词
+	EmoticonQuest = "颜文字"
+	//LoveWordsQuest 情话指令关键词
+	LoveWordsQuest = "lovewords"
 )
 
-type TuringInputText struct {
+type turingInputText struct {
 	Text string `json:"text"`
 }
 
-type TuringPerception struct {
-	InputText TuringInputText `json:"inputText"`
+type turingPerception struct {
+	InputText turingInputText `json:"inputText"`
 }
 
-type TuringUserInfo struct {
-	ApiKey string `json:"apiKey"`
+type turingUserInfo struct {
+	//APIKey 图灵123 api key
+	APIKey string `json:"apiKey"`
 
-	UserId string `json:"userId"`
+	//UserID 用户标识符
+	UserID string `json:"userId"`
 
-	GroupId string `json:"groupId"`
+	//GroupID 群聊标识符
+	GroupID string `json:"groupId"`
 
-	UserIdName string `json:"userIdName"`
+	//UserIDName 群内昵称
+	UserIDName string `json:"userIdName"`
 }
 
-type TuringApiIntent struct {
+type turingAPIIntent struct {
 	Code int16 `json:"code"`
 
 	IntentName string `json:"intentName"`
@@ -39,26 +45,28 @@ type TuringApiIntent struct {
 	ActionName string `json:"actionName"`
 }
 
-type TuringApiResult struct {
+type turingAPIResult struct {
 	ResultType string `json:"resultType"`
 
-	Values []TuringInputText `json:"values"`
+	Values turingInputText `json:"values"`
 
 	GroupType int16 `json:"groupType"`
 }
 
-type TuringApiRequest struct {
+//TuringAPIRequest 图灵api请求结构体
+type TuringAPIRequest struct {
 	ReqType int16 `json:"reqType"`
 
-	Perception *TuringPerception `json:"perception"`
+	Perception *turingPerception `json:"perception"`
 
-	UserInfo *TuringUserInfo `json:"userInfo"`
+	UserInfo *turingUserInfo `json:"userInfo"`
 }
 
-type TuringApiResponse struct {
-	Intent *TuringApiIntent `json:"intent"`
+//TuringAPIResponse 图灵api返回结构体
+type TuringAPIResponse struct {
+	Intent *turingAPIIntent `json:"intent"`
 
-	Results []TuringApiResult `json:"results"`
+	Results []turingAPIResult `json:"results"`
 }
 
 func randomEmoticon() string {
@@ -98,72 +106,77 @@ func randomLoveWord() string {
 	return words[rand.Intn(len(words))]
 }
 
-func getAnswer(msg string, uid string, groupId string, userIdName string, robotName string) (string, error) {
+func getAnswer(msg, uid, groupID, userIDName, robotName string) (string, error) {
 	fmt.Println(msg)
-	if strings.Contains(msg, EMOTICON_QUEST) {
+	if strings.Contains(msg, EmoticonQuest) {
 		e := randomEmoticon()
 		return e, nil
 	}
-	if msg == LOVEWORDS_QUEST {
+	if msg == LoveWordsQuest {
 		e := randomLoveWord()
 		return e, nil
 	}
 	turingConfig, _ := getConfig("turing")
 	robotConfig, err := getConfig(robotName)
 	if err != nil {
-		return "", Error("robot配置未定义")
+		return "", NewServiceError("robot配置未定义")
 	} else if _, exist := robotConfig["key"]; exist == false {
-		return "", Error("robot配置未定义")
+		return "", NewServiceError("robot配置未定义")
 	}
 
-	text := TuringInputText{
+	text := turingInputText{
 		Text: msg,
 	}
 
-	perception := &TuringPerception{
+	perception := &turingPerception{
 		InputText: text,
 	}
 
-	userInfo := &TuringUserInfo{
-		ApiKey: robotConfig["key"],
-		UserId: uid,
-		GroupId: groupId,
-		UserIdName: userIdName,
+	userInfo := &turingUserInfo{
+		APIKey:     robotConfig["key"],
+		UserID:     uid,
+		GroupID:    groupID,
+		UserIDName: userIDName,
 	}
 
-	apiReq := &TuringApiRequest{
-		ReqType: 0,
+	apiReq := &TuringAPIRequest{
+		ReqType:    0,
 		Perception: perception,
-		UserInfo: userInfo,
+		UserInfo:   userInfo,
 	}
 
-	jsonBody, err := SimpleHttpPost(turingConfig["base_url"], apiReq)
+	jsonBody, err := SimpleHTTPPost(turingConfig["base_url"], apiReq)
 	if err == nil {
 		fmt.Println(string(jsonBody))
-		var response *TuringApiResponse
+		var response *TuringAPIResponse
 		err := json.Unmarshal(jsonBody, &response)
 		if err != nil {
+			fmt.Println(err)
 			return "", err
-		} else {
-			if response.Intent.Code != 10005{
-				return "我累了", nil
-			}
-			resultLen := len(response.Results)
-			if resultLen < 1{
-				return "", Error("")
-			}
-			result := response.Results[0]
-			if len(result.Values) < 1{
-				return "", Error("")
-			}
-			text := result.Values[0]
-			if text.Text != ""{
-				return "我累了", nil
-			}else{
-				return text.Text, nil
-			}
 		}
-	} else {
-		return "", err
+		if response.Intent.Code == 10020 {
+			fmt.Println(1)
+			result := response.Results[0]
+			text := result.Values
+			return "翻译：" + text.Text, nil
+		}
+		if response.Intent.Code != 10004 {
+			fmt.Println(1)
+			return "我累了", nil
+		}
+		resultLen := len(response.Results)
+		if resultLen < 1 {
+			fmt.Println(2)
+			return "", NewServiceError("")
+		}
+		result := response.Results[0]
+		text := result.Values
+		if text.Text == "" {
+			fmt.Println(4)
+			return "我累了", nil
+		}
+		fmt.Println(5)
+		return text.Text, nil
 	}
+	return "", err
 }

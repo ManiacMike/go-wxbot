@@ -4,3 +4,5 @@ config.ini
 *.txt
 *.log
 .vscode
+go-wxbot
+.DS_Store

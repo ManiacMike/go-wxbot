@@ -7,6 +7,7 @@ import (
 	// "net/http"
 )
 
+//ServiceError 自定义错误
 type ServiceError struct {
 	Msg string
 }
@@ -15,12 +16,14 @@ func (e *ServiceError) Error() string {
 	return fmt.Sprintf("%s", e.Msg)
 }
 
-func Error(msg string) error {
+//NewServiceError 自定义错误func
+func NewServiceError(msg string) error {
 	return &ServiceError{msg}
 }
 
 const (
-	Version = "0.1.0"
+	//Version 当前版本
+	Version = "0.1.1"
 )
 
 var debug = flag.String("d", "off", "if on debug mode")
