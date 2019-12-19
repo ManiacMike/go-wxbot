@@ -13,7 +13,7 @@ config.ini的内容如下，需要说明的是，你得先去http://www.tuling12
 port = 8004
 
 [turing]
-base_url = http://www.tuling123.com/openapi/api
+base_url = http://openapi.tuling123.com/openapi/api/v2
 
 [熊本君]
 key = xxxxxxxxxxx
