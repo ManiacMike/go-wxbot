@@ -1,4 +1,4 @@
-package main
+package gowxbot
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-//GenerateID unique Id based on unix nano id
+// GenerateID unique Id based on unix nano id
 func GenerateID() string {
 	return strconv.FormatInt(time.Now().UnixNano(), 10)
 }
@@ -71,7 +71,7 @@ func getConfig(sec string) (map[string]string, error) {
 	return targetConfig, nil
 }
 
-//SimpleHTTPPost simple post json func
+// SimpleHTTPPost simple post json func
 func SimpleHTTPPost(urlstr string, params interface{}) ([]byte, error) {
 	var (
 		err  error

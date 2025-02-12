@@ -1,4 +1,4 @@
-package main
+package gowxbot
 
 import (
 	"encoding/json"
@@ -53,7 +53,7 @@ type turingAPIResult struct {
 	GroupType int16 `json:"groupType"`
 }
 
-//TuringAPIRequest 图灵api请求结构体
+// TuringAPIRequest 图灵api请求结构体
 type TuringAPIRequest struct {
 	ReqType int16 `json:"reqType"`
 
@@ -62,7 +62,7 @@ type TuringAPIRequest struct {
 	UserInfo *turingUserInfo `json:"userInfo"`
 }
 
-//TuringAPIResponse 图灵api返回结构体
+// TuringAPIResponse 图灵api返回结构体
 type TuringAPIResponse struct {
 	Intent *turingAPIIntent `json:"intent"`
 
